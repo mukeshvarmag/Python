@@ -26,5 +26,6 @@ def solve(A,B):
             end = mid -1
     return ans        
 
+#Hi
 print(solve(A,B))
 
