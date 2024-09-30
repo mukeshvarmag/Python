@@ -1,0 +1,34 @@
+import pymysql  # or import psycopg2 for PostgreSQL
+
+def chunked_batch_update(connection, table, updates, chunk_size=100):
+    try:
+        cursor = connection.cursor()
+        for i in range(0, len(updates), chunk_size):
+            chunk = updates[i:i + chunk_size]
+            case_statements = ', '.join(
+                [f"WHEN id = %s THEN %s" for _ in chunk]
+            )
+            ids = [str(update[0]) for update in chunk]
+            values = [val for update in chunk for val in (update[0], update[2])]
+            
+            sql_script = f"""
+            UPDATE {table}
+            SET {chunk[0][1]} = CASE 
+                {case_statements}
+                ELSE {chunk[0][1]} END
+            WHERE id IN ({', '.join(['%s' for _ in ids])});
+            """
+            
+            cursor.execute(sql_script, values + ids)
+        connection.commit()
+    except Exception as e:
+        print(f"Error: {e}")
+        connection.rollback()
+    finally:
+        cursor.close()
+
+# Example usage
+updates_list = [(i, 'column_name', f'new_value{i}') for i in range(1, 1001)]  # 1000 updates
+connection = pymysql.connect(host='localhost', user='user', password='passwd', db='your_db')  # Adjust connection details
+chunked_batch_update(connection, 'your_table', updates_list)
+connection.close()
